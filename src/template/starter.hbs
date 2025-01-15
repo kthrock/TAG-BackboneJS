@@ -1,0 +1,53 @@
+<div class="container">
+    <div class="row">
+        <div class="col-md-12">
+            <h1>Hello</h1>
+            <h4>Welcome to your BackboneJS App!</h4>
+            <p>
+                <i>Doing something is infinitely more than doing nothing.</i>
+            </p>
+            <br />
+            <input class="addfname" placeholder="First Name" type="text" />
+            <input class="addlname" placeholder="Last Name" type="text" />
+            <button class="btn btn-success addadmin">Add</button>
+            <br />
+            <br />
+            <input class="fname" placeholder="First Name" type="text" />
+            <input class="lname" placeholder="Last Name" type="text" />
+            <button class="btn btn-danger delete">Delete</button>
+            <br /><br />
+            <table class="table">
+                <thead>
+                    <th>
+                        ID
+                    </th>
+                    <th>
+                        First Name
+                    </th>
+                    <th>
+                        Last Name
+                    </th>
+                    <th>
+                        Action
+                    </th>
+                </thead>
+                {{#each response}}
+                    <tr>
+                        <td>
+                            {{id}}
+                        </td>
+                        <td>
+                            {{fname}}
+                        </td>
+                        <td>
+                            {{lname}}
+                        </td>
+                        <td>
+                            <button class="btn btn-danger btn-delete">Delete</button>
+                        </td>
+                    </tr>
+                {{/each}}
+            </table>
+        </div>
+    </div>
+</div>
