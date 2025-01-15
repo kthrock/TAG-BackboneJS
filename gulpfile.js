@@ -3,21 +3,30 @@ const less = require('gulp-less');
 const rename = require('gulp-rename');
 const concat = require('gulp-concat');
 const clean = require('gulp-rimraf');
-const connect = require('gulp-connect');
+const { spawn } = require('child_process');
 const handlebars = require('gulp-handlebars');
 const wrap = require('gulp-wrap');
 const declare = require('gulp-declare');
 const cors = require('cors');
 const path = require('path');
 
-// Server task
-function server() {
-    return connect.server({
-        root: './www',
-        middleware: () => [cors()],
-        port: 5000,
-        livereload: true
+// PHP Server task
+function server(cb) {
+    const php = spawn('php', ['-dxdebug.mode=off', '-S', 'localhost:5000', '-t', './www']);
+
+    php.stdout.on('data', (data) => {
+        console.log(`PHP Server: ${data}`);
     });
+
+    php.stderr.on('data', (data) => {
+        console.error(`PHP Server Error: ${data}`);
+    });
+
+    php.on('close', (code) => {
+        console.log(`PHP Server exited with code ${code}`);
+    });
+
+    cb();
 }
 
 // Watch task
@@ -123,8 +132,20 @@ function partials() {
         .pipe(dest('./www/'));
 }
 
+// Copy API task
+function copyApi() {
+    return src('./src/api/**/*')
+        .pipe(dest('./www/api'));
+}
+
+// Copy Vendor task
+function copyVendor() {
+    return src('./vendor/**/*')
+        .pipe(dest('./www/vendor'));
+}
+
 // Build task
-const build = parallel(jsAll, jsLibs, lessCss, bootstrapCss, bootstrapJs, templates, partials, images, img, res, index);
+const build = parallel(jsAll, jsLibs, lessCss, bootstrapCss, bootstrapJs, templates, partials, images, img, res, index, copyApi, copyVendor);
 
 // Default task
 exports.default = series(build, cleanApp, parallel(server, watchFiles));
@@ -144,4 +165,6 @@ exports.res = res;
 exports.index = index;
 exports.templates = templates;
 exports.partials = partials;
+exports.copyApi = copyApi;
+exports.copyVendor = copyVendor;
 exports.build = build;
