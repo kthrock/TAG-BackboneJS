@@ -1,190 +1,147 @@
-var gulp         = require('gulp');
-var less         = require('gulp-less');
+const { src, dest, series, parallel, watch } = require('gulp');
+const less = require('gulp-less');
+const rename = require('gulp-rename');
+const concat = require('gulp-concat');
+const clean = require('gulp-rimraf');
+const connect = require('gulp-connect');
+const handlebars = require('gulp-handlebars');
+const wrap = require('gulp-wrap');
+const declare = require('gulp-declare');
+const cors = require('cors');
+const path = require('path');
 
-var rename       = require('gulp-rename');
-var concat       = require('gulp-concat');
+// Server task
+function server() {
+    return connect.server({
+        root: './www',
+        middleware: () => [cors()],
+        port: 5000,
+        livereload: true
+    });
+}
 
+// Watch task
+function watchFiles() {
+    watch('./src', build);
+}
 
-var clean        = require('gulp-rimraf');
-var runSequence  = require('run-sequence');
-var watch        = require('gulp-watch');
-/**var clean        = require('gulp-clean');**/
-var handlebar    = require('handlebars');
+// Clean task
+function cleanApp() {
+    console.log("Clean all files in build folder");
+    return src("./dist/*", { read: false, allowEmpty: true })
+        .pipe(clean());
+}
 
-var connect      = require('gulp-connect');
+// LESS to CSS task
+function lessCss() {
+    return src('./src/less/*.less')
+        .pipe(less())
+        .pipe(concat('style.css'))
+        .pipe(dest('./www/'));
+}
 
-var handlebars   = require('gulp-handlebars');
-var wrap         = require('gulp-wrap');
-var declare      = require('gulp-declare');
-
-var cors = require('cors');
-
-
-var path = require('path');
-
-var nodeModules = './node_modules/'
-
-var self = gulp;
-
-gulp.task('default', ['build', 'clean-app', 'server', 'watch']);
-
-/**
- * Server not need for Phonegap
- * @return {[type]} [description]
- */
-
-gulp.task('server', function() {
-	connect.server({
-		root: './www',
-		middleware: function() {
-        return [cors()];
-		},
-		port: 5000,
-		livereload: true,
-
-	})
-});
-
-
-
-gulp.task('watch', function () {
-    // Endless stream mode
-    return watch('./src', { ignoreInitial: true } , function(){
-			gulp.start('build');
-		});
-
-});
-
-
-
-
-gulp.task('build', [
-  'js-all',
-  'js-libs',
-  'less-css',
-  'bootstrap-css',
-  'bootstrap-js',
-  'templates',
-  'partials',
-  'images',
-  'img',
-  'res',
-  'index'
-]);
-
-gulp.task('clean-app', [], function() {
-  console.log("Clean all files in build folder");
-
-  return gulp.src("./dist/*", { read: false })
-	.pipe(clean());
-});
-
-gulp.task('less-css', function(){
-  return gulp.src('./src/less/*.less')
-    .pipe(less())
-    .pipe(concat('style.css'))
-    .pipe(gulp.dest('./www/'));
-});
-
-gulp.task('bootstrap-css', function(){
-    return gulp.src('./node_modules/bootstrap/dist/css/bootstrap.min.css')
+// Bootstrap CSS task
+function bootstrapCss() {
+    return src('./node_modules/bootstrap/dist/css/bootstrap.min.css')
         .pipe(concat('bootstrap.min.css'))
-        .pipe(gulp.dest('./www/'));
-})
+        .pipe(dest('./www/'));
+}
 
-gulp.task('bootstrap-js', function(){
-    return gulp.src('./node_modules/bootstrap/dist/js/bootstrap.min.js')
+// Bootstrap JS task
+function bootstrapJs() {
+    return src('./node_modules/bootstrap/dist/js/bootstrap.min.js')
         .pipe(concat('bootstrap.min.js'))
-        .pipe(gulp.dest('./www/libs'));
-})
+        .pipe(dest('./www/libs'));
+}
 
+// JavaScript files task
+function jsAll() {
+    return src([
+        './src/models/*.js',
+        './src/views/*.js',
+        './src/routes/*.js'
+    ])
+        .pipe(concat('app.js'))
+        .pipe(dest('./www/'));
+}
 
-/**
- * Build all together
-*/
-gulp.task('js-all', function() {
-	return gulp.src([
-		'./src/models/*.js',
-		'./src/views/*.js',
-    './src/routes/*.js'
-	]).pipe(concat('app.js'))
-	.pipe(gulp.dest('./www/'));
-});
+// JavaScript libraries task
+function jsLibs() {
+    return src('./src/libs/**/*')
+        .pipe(dest('./www/libs'));
+}
 
-/**
- * Build all together
-*/
-gulp.task('js-libs', function() {
-	return gulp.src([
-		'./src/libs/**/*',
-	])
-	.pipe(gulp.dest('./www/libs'));
-});
+// Images task
+function images() {
+    return src('./src/images/**/*')
+        .pipe(dest('./www/images'));
+}
 
+// Img task
+function img() {
+    return src('./src/img/**/*')
+        .pipe(dest('./www/img'));
+}
 
-gulp.task('images', function() {
-	return gulp.src([
-		'./src/images/**/*',
-	])
-	.pipe(gulp.dest('./www/images'));
-});
+// Resources task
+function res() {
+    return src('./src/res/**/*')
+        .pipe(dest('./www/res'));
+}
 
-gulp.task('img', function() {
-	return gulp.src([
-		'./src/img/**/*',
-	])
-	.pipe(gulp.dest('./www/img'));
-});
+// Index file task
+function index() {
+    return src('./src/index.html')
+        .pipe(dest('./www/'));
+}
 
-gulp.task('res', function() {
-	return gulp.src([
-		'./src/res/**/*',
-	])
-	.pipe(gulp.dest('./www/res'));
-});
+// Handlebars templates task
+function templates() {
+    return src('./src/template/*.hbs')
+        .pipe(handlebars())
+        .pipe(wrap('Handlebars.template(<%= contents %>)'))
+        .pipe(declare({
+            namespace: 'Handlebars.templates',
+            noRedeclare: true // Avoid duplicate declarations
+        }))
+        .pipe(concat('template.js'))
+        .pipe(dest('./www/'));
+}
 
-gulp.task('index', function() {
-	return gulp.src([
-		'./src/index.html',
-	])
-	.pipe(gulp.dest('./www/'));
-});
+// Handlebars partials task
+function partials() {
+    return src('./src/template/partial/_*.hbs')
+        .pipe(handlebars())
+        .pipe(wrap('Handlebars.registerPartial(<%= processPartialName(file.relative) %>, Handlebars.template(<%= contents %>));', {}, {
+            imports: {
+                processPartialName: function(fileName) {
+                    return JSON.stringify(path.basename(fileName, '.hbs').substr(1));
+                }
+            }
+        }))
+        .pipe(concat('partial.js'))
+        .pipe(dest('./www/'));
+}
 
-gulp.task('templates', function(){
-  return gulp.src('./src/template/*.hbs')
-    .pipe(handlebars())
-    .pipe(wrap('Handlebars.template(<%= contents %>)'))
-    .pipe(declare({
-      namespace: 'Handlebars.templates',
-      noRedeclare: true, // Avoid duplicate declarations
-    }))
-    .pipe(concat('template.js'))
-    .pipe(gulp.dest('./www/'));
-});
+// Build task
+const build = parallel(jsAll, jsLibs, lessCss, bootstrapCss, bootstrapJs, templates, partials, images, img, res, index);
 
-gulp.task('partials', function() {
-  // Assume all partials start with an underscore
-  // You could also put them in a folder such as source/templates/partials/*.hbs
-  gulp.src(['./src/template/partial/_*.hbs'])
-    .pipe(handlebars())
-    .pipe(wrap('Handlebars.registerPartial(<%= processPartialName(file.relative) %>, Handlebars.template(<%= contents %>));', {}, {
-      imports: {
-        processPartialName: function(fileName) {
-          // Strip the extension and the underscore
-          // Escape the output with JSON.stringify
-          return JSON.stringify(path.basename(fileName, '.js').substr(1));
-        }
-      }
-    }))
-    .pipe(concat('partial.js'))
-    .pipe(gulp.dest('./www/'));
-});
+// Default task
+exports.default = series(build, cleanApp, parallel(server, watchFiles));
 
-
-
-
-
-gulp.task('www', function () {
-	return gulp.src('./src/www/**/*')
-	.pipe(gulp.dest('./dist/'));
-});
+// Export individual tasks
+exports.server = server;
+exports.watch = watchFiles;
+exports.cleanApp = cleanApp;
+exports.lessCss = lessCss;
+exports.bootstrapCss = bootstrapCss;
+exports.bootstrapJs = bootstrapJs;
+exports.jsAll = jsAll;
+exports.jsLibs = jsLibs;
+exports.images = images;
+exports.img = img;
+exports.res = res;
+exports.index = index;
+exports.templates = templates;
+exports.partials = partials;
+exports.build = build;
